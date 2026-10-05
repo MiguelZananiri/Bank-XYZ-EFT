@@ -1,0 +1,48 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: auth-server
+
+  security:
+    user:
+      name: usuario
+      password: password
+
+    oauth2:
+      authorizationserver:
+        client:
+
+          web-client:
+            registration:
+              client-id: bff-web
+              client-secret: "{noop}${AUTH_WEB_CLIENT_SECRET}"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - client_credentials
+              scopes:
+                - WEB
+
+          mobile-client:
+            registration:
+              client-id: bff-mobile
+              client-secret: "{noop}${AUTH_MOBILE_CLIENT_SECRET}"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - client_credentials
+              scopes:
+                - MOBILE
+
+          atm-client:
+            registration:
+              client-id: bff-atm
+              client-secret: "{noop}${AUTH_ATM_CLIENT_SECRET}"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - client_credentials
+              scopes:
+                - ATM

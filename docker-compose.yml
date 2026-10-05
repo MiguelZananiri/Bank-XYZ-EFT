@@ -1,4 +1,5 @@
 services:
+
   kafka:
     image: apache/kafka:latest
     container_name: kafka
@@ -8,10 +9,166 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bank-backend
+    ports:
+      - "8080:8080"
+    environment:
+      BANKXYZ_DB_PASSWORD: ${BANKXYZ_DB_PASSWORD}
+      ORACLE_WALLET_DIR: /app/wallet
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+
+    volumes:
+      - "${ORACLE_WALLET_HOST_PATH}:/app/wallet:ro"
+
+    depends_on:
+      - kafka
+
+  config-server:
+    build:
+      context: ./config-server
+      dockerfile: Dockerfile
+    container_name: config-server
+    ports:
+      - "8888:8888"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8888/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  discovery-server:
+    build:
+      context: ./discovery-server
+      dockerfile: Dockerfile
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  auth-server:
+    build:
+      context: ./auth-server
+      dockerfile: Dockerfile
+    container_name: auth-server
+    ports:
+      - "9000:9000"
+
+    environment:
+      AUTH_WEB_CLIENT_SECRET: ${AUTH_WEB_CLIENT_SECRET}
+      AUTH_MOBILE_CLIENT_SECRET: ${AUTH_MOBILE_CLIENT_SECRET}
+      AUTH_ATM_CLIENT_SECRET: ${AUTH_ATM_CLIENT_SECRET}
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  bff-web:
+    build:
+      context: ./bff-web
+      dockerfile: Dockerfile
+    container_name: bff-web
+    ports:
+      - "8081:8081"
+    environment:
+      BFF_WEB_SSL_KEYSTORE_PASSWORD: ${BFF_WEB_SSL_KEYSTORE_PASSWORD}
+      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      BANKXYZ_BACKEND_URL: http://backend:8080
+    depends_on:
+      auth-server:
+        condition: service_healthy
+
+      config-server:
+        condition: service_healthy
+
+      discovery-server:
+        condition: service_healthy
+
+      backend:
+        condition: service_healthy
+
+  bff-mobile:
+    build:
+      context: ./bff-mobile
+      dockerfile: Dockerfile
+    container_name: bff-mobile
+    ports:
+      - "8082:8082"
+    environment:
+      BFF_MOBILE_SSL_KEYSTORE_PASSWORD: ${BFF_MOBILE_SSL_KEYSTORE_PASSWORD}
+      CONFIG_SERVER_URL: http://config-server:8888
+      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      BANKXYZ_BACKEND_URL: http://backend:8080
+    depends_on:
+      auth-server:
+        condition: service_healthy
+
+      config-server:
+        condition: service_healthy
+
+      discovery-server:
+        condition: service_healthy
+
+      backend:
+        condition: service_healthy
+
+  bff-atm:
+    build:
+      context: ./bff-atm
+      dockerfile: Dockerfile
+    container_name: bff-atm
+    ports:
+      - "8083:8083"
+    environment:
+      BFF_ATM_SSL_KEYSTORE_PASSWORD: ${BFF_ATM_SSL_KEYSTORE_PASSWORD}
+      CONFIG_SERVER_URL: http://config-server:8888
+      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      BANKXYZ_BACKEND_URL: http://backend:8080
+    depends_on:
+      auth-server:
+        condition: service_healthy
+
+      config-server:
+        condition: service_healthy
+
+      discovery-server:
+        condition: service_healthy
+
+      backend:
+        condition: service_healthy

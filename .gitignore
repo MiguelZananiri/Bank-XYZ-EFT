@@ -36,3 +36,7 @@ output/
 
 # Evidencias de la entrega
 evidencias/
+
+# Archivos temporales de autenticación
+auth-web.json
+auth-*.json

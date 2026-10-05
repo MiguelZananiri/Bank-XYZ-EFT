@@ -1,248 +1,382 @@
-# Bank XYZ - Backend for Frontend (BFF)
+# Proyecto Banco XYZ
 
-Proyecto desarrollado para la asignatura **Desarrollo Backend III (PBY2203)**.
+Proyecto academico del instituto Duoc UC para la asignatura **Desarrollo Backend III**.
 
-Esta versión corresponde a la continuidad del proyecto Bank XYZ y a la implementación del patrón arquitectónico **Backend for Frontend (BFF)** para tres tipos de clientes:
+## Tecnologias utilizadas
 
-- Aplicación Web
-- Aplicación Móvil
-- Cajero Automático (ATM)
-
-Durante esta etapa se incorporaron mecanismos adicionales de seguridad mediante **HTTPS, certificados SSL/TLS, autenticación y autorización mediante JWT**.
-
----
-
-## Objetivo
-
-El objetivo del proyecto es implementar el patrón Backend for Frontend, permitiendo que cada tipo de cliente disponga de un backend independiente y adaptado a sus necesidades.
-
-El sistema mantiene un backend principal encargado del acceso a los datos del Banco XYZ y tres BFF independientes:
-
-- BFF Web
-- BFF Mobile
-- BFF ATM
-
-Cada BFF consume las APIs del backend principal, transforma la información y expone únicamente los datos y operaciones requeridos por su canal.
-
-Además, las APIs de los BFF se encuentran protegidas mediante HTTPS y tokens JWT.
-
----
-
-## Arquitectura
-
-```text
-                           Oracle Database
-                                  │
-                                  ▼
-                      Backend principal Bank XYZ
-                         http://localhost:8080
-                                  │
-                  ┌───────────────┼───────────────┐
-                  │               │               │
-                  ▼               ▼               ▼
-              BFF Web         BFF Mobile        BFF ATM
-          https://:8081     https://:8082     https://:8083
-                  │               │               │
-                  ▼               ▼               ▼
-                Web             Móvil           Cajero
-```
-
-Los BFF no acceden directamente a Oracle.
-
-El acceso a los datos se mantiene centralizado en el backend principal, mientras que cada BFF se encarga de adaptar la respuesta, aplicar la seguridad correspondiente y exponer las operaciones necesarias para su cliente.
-
----
-
-## Tecnologías utilizadas
-
-- Java 18
-- Spring Boot 4.1.1
-- Spring MVC
-- Spring Batch
-- Spring JDBC
-- Spring Security
-- Spring Security OAuth2 Resource Server
-- JSON Web Token (JWT)
-- HTTPS / TLS
-- Certificados PKCS12
-- Oracle Database
-- Oracle Wallet
+- Java
 - Maven
-- Git / GitHub
+- Spring Boot
+- Spring Cloud
+- Spring Cloud Config
+- Spring Security
+- Spring Authorization Server
+- JWT
+- OAuth 2.0
+- Kafka
+- Eureka
+- Resilience4j
+- Oracle Autonomus Database
+- Docker
+- Docker Compose
 
----
+## Como funciona
+
+**Bank-XYZ** es un proyecto backend que simula un sistema bancario, utilizando microservicios para realizar operaciones bancarias de manera segura y resiliente.
+
+El proyecto tiene implementado:
+
+- OAuth2.0: para la autenticacion y autorizacion mediante Spring Authorization server.
+- JWT: para la seguridad en la comunicacion y acceso a los servicios.
+- Scopes: para controlar los permisos de los diferentes canales.
+- Spring: Cloud Config para centralizar la configuracion de los microservicios.
+- Eureka Discovery Server: para el registro y descubrimiento de servicios.
+- Resilience4j: para la tolerancia a fallos.
+- Apache Kafka: para la comunicacion y procesamiento de mensajes asincronicos.
+- Docker: para contenerizar  los diferentes componentes.
+- Docker Compose: para levantar los servicios al docker.
+- HTTPS: para la proteccion de datos en cada BFF.
+- Oracle Autonomus Database: para la persistencia de datos.
 
 ## Estructura del proyecto
 
-```text
-demo/
-│
-├── src/
-│   └── main/java/com/duoc/demo/
-│       ├── Config/
-│       ├── Controller/
-│       ├── Dto/
-│       ├── Model/
-│       ├── Processor/
-│       ├── Reader/
-│       ├── Repository/
-│       ├── Service/
-│       └── Writer/
-│
-├── bff-web/
-│   └── src/main/java/com/duoc/bffweb/
-│       ├── config/
-│       ├── controller/
-│       ├── dto/
-│       └── service/
-│
-├── bff-mobile/
-│   └── src/main/java/com/duoc/bffmobile/
-│       ├── config/
-│       ├── controller/
-│       ├── dto/
-│       └── service/
-│
-├── bff-atm/
-│   └── src/main/java/com/duoc/bffatm/
-│       ├── config/
-│       ├── controller/
-│       ├── dto/
-│       └── service/
-│
-├── script/
-│   └── generar-certificados.ps1
-│
-├── README.md
-├── PROPUESTA_TECNICA.md
-└── pom.xml
-```
+### Backend Principal
 
----
+Es el backend Principal para el procesamiento de datos y su persistencia con Oracle Autonomous Database.
 
-# Backend principal
+### BFF Web
 
-El backend principal se ejecuta mediante HTTP en:
+Backend para el cliente web que entrega informacion completa de los datos bancarios.
+
+### BFF Mobile
+
+Backend para el cliente movil que entrega informacion reducida de los datos bancarios.
+
+### BFF ATM
+
+Backend para el cliente de un cajero automatico que entrega informacion necesaria y permite realizar retiros.
+
+### Authorization Server
+
+Servidor que entrega tokens **OAuth 2.0**, generando tokens **JWT** que permiten acceder a los recursos protegidos de cada BFF.
+
+### Config Server
+
+Servidor encargado de centralizar la configuracion de los diferentes microservicios mediante **Spring Cloud Config**.
+
+### Discovery Server
+
+Servidor que incluye Eureka para el registro y descubrimiento de servicios. 
+
+## Implementacion de OAuth 2.0
+
+Se implemento **OAuth 2.0** para la autenticacion y autorizacion de los diferentes BFF, utilizando tokens **JWT** y el flujo `client_credentials`.
+
+Definiendo los tres clientes para cada uno de los BFF:
+
+| Cliente | Scope |
+|---|---|
+| bff-web | WEB |
+| bff-mobile | MOBILE |
+| bff-atm | ATM |
+
+Con OAuth2 Resource Server que se encuentra en cada BFF se validan los tokens verificando que contengan el scope correspondiente antes de permitir su acceso.
 
 ```text
-http://localhost:8080
+/api/web/**     = SCOPE_WEB
+/api/mobile/**  = SCOPE_MOBILE
+/api/atm/**     = SCOPE_ATM
 ```
 
-Su función es acceder a los datos almacenados en Oracle y proporcionar las APIs utilizadas internamente por los BFF.
+### Obtencion de un token
 
-## Endpoints
+Para obtener el token, se debe realizar una peticion POST con el siguiente endpoint:
 
-| Método | Endpoint | Descripción |
+```text
+POST http://localhost:9000/oauth2/token
+```
+
+El cuerpo de la peticion debe utilizar el fomato application/x-www-form-urlencoded:.
+
+|| Key | Value |
 |---|---|---|
-| GET | `/api/cuentas` | Obtiene todas las cuentas |
-| GET | `/api/cuentas/{id}` | Obtiene una cuenta por ID |
-| POST | `/api/cuentas/{id}/retiro` | Realiza un retiro |
+|✓| grant_type | client_credentials |
+|✓| scope | WEB |
 
-Ejemplo:
-
-```text
-GET http://localhost:8080/api/cuentas/101
-```
-
----
-
-# BFF Web
-
-El BFF Web se ejecuta mediante HTTPS en:
+Ademas, se introduce las credenciales del cliente mediante **HTTP Basic Authentication**.
 
 ```text
-https://localhost:8081
+Username: bff-web
+Password: web-secret
 ```
 
-Está orientado a navegadores y proporciona información completa para interfaces que requieren mayor nivel de detalle.
+Al enviar te dara el token que se utilizara en el BFF correspondiente.
 
-## Endpoints
+### Rechazo del token
 
-| Método | Endpoint | Descripción |
-|---|---|---|
-| POST | `/auth/token` | Autentica al usuario y genera un JWT |
-| GET | `/api/web/cuentas` | Obtiene la lista completa de cuentas |
-| GET | `/api/web/cuentas/{id}` | Obtiene el detalle completo de una cuenta |
+Si se intenta acceder a un BFF con un token que tiene un scope que no corresponde, se rechazara dando el codigo **403 Forbidden**
 
-La respuesta Web incluye:
+## Implementacion de Resilience4j
 
-- ID de cuenta
-- Nombre del cliente
-- Edad
-- Tipo de cuenta
-- Saldo inicial
-- Tasa de interés
-- Interés generado
-- Saldo actual
-- Estado
+Se implemento **Resilience4j** en los BFF para mejorar la tolerancia a fallos en la comunicacion con el backend principal.
 
-Los endpoints `/api/web/**` requieren un JWT con alcance:
+Cada BFF utiliza mecanismos de resiliencia que permiten controlar errores cuando un servicio no este disponible.
+
+### Circuit Breaker
+
+Utilizado para evitar las peticiones constantes al Backend principal cuando se presentan varios errores.
+
+### Retry
+
+La implementacion de Retry sirve para volver a intentar una operacion cuando ocurre un error, permitiendo que la peticion pueda completarse correctamente.
+
+### Bulkhead
+
+Bulhead sirve para limitar la cantidad de llamadas concurrentes hacia el backend principal, y asi no se sature el servicio.
+
+### Fallback
+
+Cuando una operacion no se completa correctamente debido a que el backend principal no se encuentra disponible, se utiliza un fallback para entregar una respuesta controlada al cliente.
+
+Ejemplo de fallback:
 
 ```text
-WEB
+    "cuentaId": 101,
+    "nombreCliente": "Servicio no disponible",
+    "edadCliente": 0,
+    "tipoCuenta": "N/A",
+    "saldoInicial": null,
+    "tasaInteres": null,
+    "interesGenerado": null,
+    "saldoActual": null,
+    "estado": "TEMPORALMENTE_NO_DISPONIBLE"
 ```
 
----
+## Implementacion de Kafka
 
-# BFF Mobile
+La implementacion de **Apache Kafka** sirve para procesar eventos a traves de mensajeria asincrona, desacoplando el procesamiento de las operaciones bancarias.
 
-El BFF Mobile se ejecuta mediante HTTPS en:
+Para las operaciones de retiro se utiliza el tópico:
 
 ```text
-https://localhost:8082
+retiro-realizado
 ```
 
-Está diseñado para reducir el volumen de datos transferidos a dispositivos móviles.
-
-## Endpoints
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| POST | `/auth/token` | Autentica al usuario y genera un JWT |
-| GET | `/api/mobile/cuentas` | Obtiene una lista resumida de cuentas |
-| GET | `/api/mobile/cuentas/{id}` | Obtiene información resumida de una cuenta |
-
-La respuesta Mobile contiene únicamente:
-
-- ID de cuenta
-- Nombre
-- Tipo de cuenta
-- Saldo actual
-- Estado
-
-Los endpoints `/api/mobile/**` requieren un JWT con alcance:
+Los consumidores encargados de procesar estos eventos pertenecen al siguiente Consumer Group:
 
 ```text
-MOBILE
+auditoria-bankxyz
 ```
 
----
-
-# BFF ATM
-
-El BFF ATM se ejecuta mediante HTTPS en:
+El tópico retiro-realizado dispone de 3 particiones, permitiendo distribuir el procesamiento de los eventos:
 
 ```text
-https://localhost:8083
+retiro-realizado-0
+retiro-realizado-1
+retiro-realizado-2
 ```
 
-Está orientado a operaciones críticas de cajeros automáticos y entrega únicamente la información necesaria para dichas operaciones.
+Los consumidores que pertenecen al mismo Consumer Group pueden distribuirse las particiones disponibles, permitiendo procesar los eventos de forma paralela.
 
-## Endpoints
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| POST | `/auth/token` | Autentica al usuario y genera un JWT |
-| GET | `/api/atm/cuentas/{id}/saldo` | Consulta el saldo disponible |
-| POST | `/api/atm/cuentas/{id}/retiro` | Realiza un retiro |
-
-Los endpoints `/api/atm/**` requieren un JWT con alcance:
+Por ejemplo, con tres consumidores activos dentro del grupo `auditoria-bankxyz`, Kafka puede asignar una particion para cada consumidor.
 
 ```text
-ATM
+retiro-realizado-0 -> Consumer 1
+retiro-realizado-1 -> Consumer 2
+retiro-realizado-2 -> Consumer 3
 ```
 
-Ejemplo de cuerpo para retiro:
+### Flujo del evento
+
+Cuando se realiza un retiro correctamente, el backend principal publica un evento en Kafka:
+
+```text
+BFF ATM
+   |
+   v
+Backend
+   |
+   v
+Kafka Producer
+   |
+   v
+retiro-realizado
+   |
+   v
+Consumer auditoria-bankxyz
+```
+
+## Implementacion de Docker y Docker Compose
+
+Para este proyecto se utilizo **Docker** para tener contenerizar  el proyecto en un contenedor. 
+
+Cada servicio tiene su propio `Dockerfile`, para la construccion de la imagen y la ejecucion de la aplicacion dentro del contenedor.
+
+Ademas, se utilizo un **Docker Compose** para configurar, levantar y coordinar los servicios del proyecto en el contenedor.
+
+El archivo `docker-compose.yml` levanta los siguientes servicios para el contenedor.
+
+```text
+kafka
+backend
+config-server
+discovery-server
+auth-server
+bff-web
+bff-mobile
+bff-atm
+```
+
+Para este archivo se utiliza los siguientes comandos:
+
+### Levantar los servicios
+
+Para construir las imagenes e iniciar todos los servicios.
+
+```powershell
+docker compose up -d --build
+```
+
+### Comprobar el estado:
+
+Para comprobar el estado de los contenedores.
+
+```powershell
+docker compose ps
+```
+
+### Para detener el contenedor
+
+Para detener y eliminar los contenedores.
+
+```powershell
+docker compose down
+```
+
+## Implementacion de Oracle Autonomus Database
+
+El backend principal esta implementado con **Oracle Autonomus Database** para la persistencia de datos bancarios mediante una base de datos Oracle.
+
+La conexion entre el backend principal y la base de datos se realiza utilizando el **Oracle Wallet**, proporcionado por Oracle el cual tiene los archivos necesarios para establecer una conexion con la base de datos.
+
+## Implementacion de HTTPS y keystores
+
+Los tres BFF utilizan **HTTPS** para proteger la comunicacion entre los clientes y los servicios mediante **TLS**, permitiendo que los datos transmitidos viajen con un cifrado mas seguro.
+
+Cada BFF dispone de su propio **Keystore**, el cual contiene el certificado y la clave privada para habilitar HTTPS.
+
+```text
+bff-web/keystore.p12
+bff-mobile/keystore.p12
+bff-atm/keystore.p12
+```
+
+Estas mismas **Keystores** se pueden generar con `keytool` que viene incluido con JDK.
+
+Por ejemplo:
+
+```text
+keytool -genkeypair \
+  -alias bff-local \
+  -keyalg RSA \
+  -keysize 2048 \
+  -storetype PKCS12 \
+  -keystore keystore.p12 \
+  -validity 365
+```
+
+Posteriormente, cada BFF configura Spring Boot para utilizar su Keystore:
+
+```text
+server.ssl.enabled=true
+server.ssl.key-store=classpath:keystore.p12
+server.ssl.key-store-password=${BFF_ATM_SSL_KEYSTORE_PASSWORD}
+server.ssl.key-store-type=PKCS12
+server.ssl.key-alias=bff-web
+```
+
+## Variables de entorno
+
+Para iniciar el proyecto de manera local o contenerizar el proyecto en docker, es necesario configurar las siguientes variables de entorno:
+
+```text
+BANKXYZ_DB_PASSWORD=tu_password
+ORACLE_WALLET_HOST_PATH=ruta_del_oracle_wallet
+
+AUTH_WEB_CLIENT_SECRET:=secreto_oauth_web
+AUTH_MOBILE_CLIENT_SECRET:=secreto_oauth_mobile
+AUTH_ATM_CLIENT_SECRET=secreto_oauth_atm
+
+BFF_WEB_SSL_KEYSTORE_PASSWORD=password_keystore_web
+BFF_MOBILE_SSL_KEYSTORE_PASSWORD=password_keystore_mobile
+BFF_ATM_SSL_KEYSTORE_PASSWORD=password_keystore_atm
+```
+
+Para ejecutar el proyecto mediante Docker Compose, se debe crear un archivo `.env` en la raíz del proyecto
+
+Por motivos de seguridad, el archivo `.env` no debe publicarse en el repositorio, ya que puede contener contraseñas, secretos OAuth y otras credenciales sensibles.
+
+Por esta razón, debe estar incluido en el archivo `.gitignore`.
+
+## Ejemplos
+
+### Ejemplo OAuth2
+
+Para solicitar un token JWT:
+
+```powershell
+curl.exe -u "bankxyz-web:CLIENT_SECRET" `
+  -X POST `
+  -H "Content-Type: application/x-www-form-urlencoded" `
+  -d "grant_type=client_credentials&scope=WEB" `
+  http://localhost:9000/oauth2/token
+```
+
+Para utilizar el token:
+
+```powershell
+curl.exe -sk `
+  -H "Authorization: Bearer TOKEN" `
+  https://localhost:8081/api/web/cuentas/101
+```
+
+### Ejemplo en Postman
+
+Consultar saldo desde ATM:
+
+```text
+GET https://localhost:8083/api/atm/cuentas/101/saldo
+```
+
+Se debe enviar el token correspondiente al scope ATM:
+
+```text
+Authorization: Bearer TOKEN
+```
+
+Resultado esperado:
+
+```json
+{
+    "cuentaId": 101,
+    "saldoDisponible": 7080,
+    "estado": "VALIDA"
+}
+```
+
+Ejemplo con atm con retiro:
+
+```text
+POST https://localhost:8083/api/atm/cuentas/101/retiro
+```
+
+Se debe enviar el token correspondiente al scope ATM:
+
+```text
+Authorization: Bearer TOKEN
+```
+
+Body de la peticion:
 
 ```json
 {
@@ -250,342 +384,45 @@ Ejemplo de cuerpo para retiro:
 }
 ```
 
----
-
-# Personalización y optimización por canal
-
-Cada BFF consume el mismo backend principal, pero adapta la información según las necesidades de su cliente.
-
-```text
-Backend principal
-        │
-        ├── BFF Web
-        │     └── Información completa
-        │
-        ├── BFF Mobile
-        │     └── Información esencial y resumida
-        │
-        └── BFF ATM
-              └── Saldo y operaciones de retiro
-```
-
-Durante las pruebas realizadas sobre la cuenta `101` se obtuvieron los siguientes tamaños de respuesta:
-
-| Canal | Tamaño de respuesta |
-|---|---:|
-| Web | 183 bytes |
-| Mobile | 99 bytes |
-| ATM | 57 bytes |
-
-En esta prueba, Mobile transfirió aproximadamente un **45,9 % menos información que Web**, mientras que ATM transfirió aproximadamente un **68,9 % menos**.
-
-Los tiempos obtenidos en una ejecución de prueba fueron:
-
-| Canal | Tiempo |
-|---|---:|
-| Web | 0.381755 s |
-| Mobile | 0.111764 s |
-| ATM | 0.093577 s |
-
-Los tiempos pueden variar entre ejecuciones, por lo que se utilizan únicamente como referencia. La reducción del tamaño de las respuestas demuestra de manera directa la personalización y optimización de datos según el canal.
-
----
-
-# Seguridad
-
-Los tres BFF implementan una configuración de seguridad independiente.
-
-Se utilizan:
-
-- HTTPS.
-- Certificados SSL/TLS autofirmados para el entorno local.
-- Keystores PKCS12 independientes por BFF.
-- Autenticación mediante usuario y contraseña para solicitar tokens.
-- Tokens JWT firmados mediante HMAC SHA-256.
-- Autorización mediante scopes específicos por canal.
-- Sesiones HTTP stateless.
-- Contraseñas y secretos obtenidos desde variables de entorno.
-
-Los scopes utilizados son:
-
-| BFF | Scope requerido |
-|---|---|
-| Web | `WEB` |
-| Mobile | `MOBILE` |
-| ATM | `ATM` |
-
-Spring Security interpreta estos scopes como autoridades:
-
-```text
-SCOPE_WEB
-SCOPE_MOBILE
-SCOPE_ATM
-```
-
-Una solicitud sin token o con un token inválido responde:
-
-```text
-HTTP/1.1 401 Unauthorized
-```
-
-Los tokens generados tienen una duración configurada de:
-
-```text
-1800 segundos
-```
-
-equivalentes a 30 minutos.
-
----
-
-# Certificados SSL/TLS
-
-Cada BFF utiliza su propio archivo:
-
-```text
-keystore.p12
-```
-
-Estos archivos contienen claves privadas y no deben almacenarse en el repositorio Git.
-
-Por esta razón se encuentran excluidos mediante `.gitignore`.
-
-Los certificados pueden generarse ejecutando:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-
-.\script\generar-certificados.ps1
-```
-
-Antes de ejecutar el script deben encontrarse configuradas las contraseñas:
-
-```powershell
-$env:BFF_WEB_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_WEB'
-$env:BFF_MOBILE_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_MOBILE'
-$env:BFF_ATM_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_ATM'
-```
-
-Los certificados utilizados en desarrollo son autofirmados y están configurados para:
-
-```text
-localhost
-127.0.0.1
-```
-
-Al utilizar `curl` durante las pruebas locales se emplea la opción `-k` debido a que los certificados no pertenecen a una autoridad certificadora pública.
-
----
-
-# Variables de entorno
-
-## Backend principal
-
-```powershell
-$env:ORACLE_WALLET_DIR='RUTA_DEL_ORACLE_WALLET'
-$env:BANKXYZ_DB_PASSWORD='CONTRASEÑA_ORACLE'
-$env:SPRING_BATCH_JOB_ENABLED='false'
-```
-
-El Oracle Wallet debe contener el alias de conexión utilizado por el proyecto.
-
-Actualmente la conexión utiliza:
-
-```text
-bankxyz_tp
-```
-
-## BFF Web
-
-```powershell
-$env:BFF_WEB_USERNAME='web_user'
-$env:BFF_WEB_PASSWORD='CONTRASEÑA_WEB'
-$env:BFF_WEB_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_WEB'
-$env:BFF_WEB_JWT_SECRET='SECRETO_JWT_BASE64'
-```
-
-## BFF Mobile
-
-```powershell
-$env:BFF_MOBILE_USERNAME='mobile_user'
-$env:BFF_MOBILE_PASSWORD='CONTRASEÑA_MOBILE'
-$env:BFF_MOBILE_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_MOBILE'
-$env:BFF_MOBILE_JWT_SECRET='SECRETO_JWT_BASE64'
-```
-
-## BFF ATM
-
-```powershell
-$env:BFF_ATM_USERNAME='atm_user'
-$env:BFF_ATM_PASSWORD='CONTRASEÑA_ATM'
-$env:BFF_ATM_SSL_KEYSTORE_PASSWORD='CONTRASEÑA_SSL_ATM'
-$env:BFF_ATM_JWT_SECRET='SECRETO_JWT_BASE64'
-```
-
-Los secretos JWT deben tener al menos 256 bits.
-
-Ejemplo para generar uno temporalmente desde PowerShell:
-
-```powershell
-$jwtBytes = New-Object byte[] 32
-$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-$rng.GetBytes($jwtBytes)
-$rng.Dispose()
-
-$env:BFF_WEB_JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
-```
-
-El mismo procedimiento puede utilizarse para Mobile y ATM cambiando el nombre de la variable correspondiente.
-
----
-
-# Ejecución
-
-Los cuatro servicios deben ejecutarse en terminales independientes.
-
-## Backend principal
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-Disponible en:
-
-```text
-http://localhost:8080
-```
-
-## BFF Web
-
-```powershell
-.\mvnw.cmd -f .\bff-web\pom.xml spring-boot:run
-```
-
-Disponible en:
-
-```text
-https://localhost:8081
-```
-
-## BFF Mobile
-
-```powershell
-.\mvnw.cmd -f .\bff-mobile\pom.xml spring-boot:run
-```
-
-Disponible en:
-
-```text
-https://localhost:8082
-```
-
-## BFF ATM
-
-```powershell
-.\mvnw.cmd -f .\bff-atm\pom.xml spring-boot:run
-```
-
-Disponible en:
-
-```text
-https://localhost:8083
-```
-
-El backend principal debe encontrarse activo para que los BFF puedan consumir sus APIs.
-
----
-
-# Autenticación mediante JWT
-
-Cada BFF dispone de:
-
-```text
-POST /auth/token
-```
-
-El endpoint recibe:
+Resultado esperado:
 
 ```json
 {
-    "username": "USUARIO",
-    "password": "CONTRASEÑA"
+    "cuentaId": 101,
+    "montoRetirado": 100,
+    "saldoDisponible": 6980,
+    "mensaje": "Retiro realizado correctamente"
 }
 ```
 
-y devuelve:
+## Como compilar en Maven
 
-```json
-{
-    "accessToken": "TOKEN_JWT",
-    "tokenType": "Bearer",
-    "expiresIn": 1800
-}
-```
+El proyecto utiliza **Maven** para la gestion de dependencias y compilacion de los diferentes servicios.
 
-Posteriormente el token debe enviarse mediante:
-
-```text
-Authorization: Bearer TOKEN_JWT
-```
-
----
-
-# Ejemplo de prueba
-
-Una solicitud protegida sin JWT:
+Para compilar desde la rais se utiliza el comando:
 
 ```powershell
-curl.exe -k -i "https://localhost:8081/api/web/cuentas/101"
+.\mvnw.cmd clean package -DskipTests
 ```
 
-Respuesta esperada:
-
-```text
-HTTP/1.1 401
-```
-
-Con un JWT previamente obtenido:
+Para compilar individualmente cada uno de los servicios:
 
 ```powershell
-curl.exe -k -i `
-    -H "Authorization: Bearer $token" `
-    "https://localhost:8081/api/web/cuentas/101"
+.\mvnw.cmd -f .\backend\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\discovery-server\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\config-server\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\auth-server\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\bff-web\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\bff-mobile\pom.xml clean package -DskipTests
+.\mvnw.cmd -f .\bff-atm\pom.xml clean package -DskipTests
 ```
 
-Respuesta esperada:
+## Conclusion
 
-```text
-HTTP/1.1 200
-```
+En conclusion el proyecto **Bank-XYZ** permite implementar una arquitectura backend basada en microservicios, integrando diferentes tecnologias para la seguridad, resiliencia, comunicacion y persistencia de datos.
 
-El mismo mecanismo se aplica a Mobile y ATM utilizando sus respectivos puertos, endpoints y tokens.
+Mediante **OAuth2.0** junto con **JWT** y **HTTPS** se protegio el acceso y comunicacion de los diferentes BFF, teniendo un proyecto seguro para los clientes. Con **Resilience4j** se incorporaron mecanismos de tolerancia a fallos y sea mas controlado, mientras que **Apache Kafka** permitio implementar comunicacion asincrona para el procesamiento de eventos.
 
----
+Ademas, **Spring Cloud Config** y **Eureka** permiten centralizar la configuracion y facilitar el descubrimiento de servicios. **Oracle Autonomus Database** fue utilizado para la persistencia de los datos bancarios y mediante **Docker** y **Docker Compose**, los diferentes componentes de arquitectura pueden ejecutarse de forma conjunta y aislada.
 
-# Evidencias de ejecución
-
-Durante las pruebas se verificó:
-
-- Acceso rechazado sin JWT.
-- Acceso autorizado mediante JWT válido.
-- Rechazo de tokens inválidos.
-- Ejecución de los tres BFF mediante HTTPS.
-- Consulta Web con información completa.
-- Consulta Mobile con información resumida.
-- Consulta de saldo mediante ATM.
-- Retiro mediante ATM.
-- Comparación del tamaño de las respuestas de Web, Mobile y ATM.
-
-Estas evidencias se adjuntan junto con el proyecto para demostrar el correcto funcionamiento de las APIs.
-
----
-
-# Conclusión
-
-La solución implementa el patrón Backend for Frontend mediante tres aplicaciones Spring Boot independientes para Web, Mobile y ATM.
-
-Cada canal dispone de endpoints y respuestas adaptados a sus necesidades, reduciendo la transferencia de información innecesaria y evitando que los clientes dependan de una respuesta genérica.
-
-La seguridad de los BFF fue reforzada mediante HTTPS, certificados independientes, autenticación mediante credenciales, autorización específica por canal y tokens JWT.
-
-De esta forma, el proyecto mantiene la lógica de acceso a datos centralizada en el backend principal y separa las responsabilidades específicas de cada frontend, favoreciendo la modularidad, escalabilidad, seguridad y mantenibilidad de la solución.
+El proyecto permitio aplicar conceptos de desarrollo backend relacionados con microservicios, seguridar, resiliencia, mensajeria asincrona, persistencia y contenerizacion, construyendo una solucion bancaria modular y preparada para manejar diferentes canales como Web, Mobile y ATM.

@@ -1,12 +1,16 @@
 server:
   port: 8082
 
+bankxyz:
+  backend:
+    url: http://localhost:8080
+
 eureka:
   client:
-    serviceUrl:
-      defaultZone: http://localhost:8761/eureka
-    instance:
-      preferIpAddress: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:
@@ -18,13 +22,35 @@ management:
       show-details: always
 
 resilience4j:
+
+  retry:
+    instances:
+      backendRetry:
+        maxAttempts: 3
+        waitDuration: 1s
+
+  bulkhead:
+    instances:
+      backendBulkhead:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 0
+
   circuitbreaker:
     instances:
       circuitBreaker:
-        slidingWindowSize: 4
+        slidingWindowSize: 10
         minimumNumberOfCalls: 2
         failureRateThreshold: 50
         waitDurationInOpenState: 10s
 
+  timelimiter:
+    instances:
+      circuitBreaker:
+        timeoutDuration: 10s
+
 bff:
   channel: mobile
+  jwt:
+    issuer: bff-mobile
+    scope: MOBILE
+    expiration-seconds: 1800

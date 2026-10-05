@@ -1,229 +1,163 @@
-# Propuesta Técnica
-## Implementación Backend for Frontend - Bank XYZ
+# Propuesta Tecnica
 
-### 1. Contexto
+## 1. Introduccion
 
-El proyecto Bank XYZ requiere atender tres tipos de clientes con necesidades diferentes:
+La presente propuesta plantea una modernizacion al proyecto backend de **Bank XYZ**, un sistema bancario basada en una arquitectura de microservicios.
 
-- Aplicación Web.
-- Aplicación Móvil.
-- Cajero Automático (ATM).
+La solucion busca separar las responsabilidades del sistema, proporcionando servicios especializados para los diferentes clientes como Web, Mobile y ATM, mejorando la seguridad de las comunicaciones e incorporando mecanismos de resiliencia y procesamiento asincrono.
 
-Una única respuesta genérica para los tres canales provocaría transferencia innecesaria de información y aumentaría el acoplamiento entre los clientes y el backend.
+Se propone utilizar las siguientes tecnologias para lograr el ecosistema que se desarrolla. Spring, junto con OAuth 2.0, JWT, Apache Kafka, Resilience4j, Oracle Autonomus Database, Docker y Docker Compose.
 
-Por esta razón se implementa el patrón arquitectónico **Backend for Frontend (BFF)**.
+## 2. Objetivo general
 
----
+El objetivo es diseñar e implementar una arquitectura backend distribuida para Bank XYZ que permita realizar operaciones bancarias de manera segura, resiliente y desacoplada, proporcionando servicios adaptados a diferentes tipos de clientes.
 
-## 2. Estrategia seleccionada
+## 3. Objetivos especificos
 
-La estrategia seleccionada consiste en implementar un **BFF independiente para cada tipo de cliente**.
+- Implementar BFF independientes para los canales Web, Mobile y ATM.
+- Centralizar la configuracion de los servicios mediante Spring Cloud Config.
+- Implementar registro y descubrimiento de servicios mediante Eureka.
+- Proteger los recursos mediante OAuth 2.0 y tokens JWT.
+- Restringir el acceso a los diferentes BFF mediante scopes.
+- Proteger las comunicaciones mediante HTTPS.
+- Implementar tolerancia a fallos mediante Resilience4j.
+- Incorporar mensajeria asincrona mediante Apache Kafka.
+- Utilizar Oracle Autonomus Database para la persistencia de datos.
+- Contenerizar los componentes mediante Docker y coordinarlos mediante Docker Compose.
 
-La arquitectura queda compuesta por:
+## 4. Problematica
+
+Para Bank XYZ se requiere una arquitectura que permita atender diferentes canales de acceso sin exponer el backend principal.
+
+Los canales poseen diferentes necesidades. Por ejemplo, el cliente web puede requerir informacion bancaria mas completa, mientras que un ATM necesita unicamente informacion relacionada con operaciones especificas, como la consulta de saldo y la realizacion de retiros.
+
+Ademas, una arquitectura distribuida debe considerar problemas como la indisponibilidad temporal de servicios, seguridad de los endpoints, comunicacion entre componentes y procesamiento de operaciones que no necesitan ejecutarse de manera sincrona.
+
+## 5. Solucion propuesta
+
+Se propone implementar una arquitectura basada en diferentes servicios independientes.
 
 ```text
-                       Oracle Database
-                              │
-                              ▼
-                     Backend principal
-                    http://localhost:8080
-                              │
-              ┌───────────────┼───────────────┐
-              │               │               │
-              ▼               ▼               ▼
-          BFF Web         BFF Mobile        BFF ATM
-      https://:8081     https://:8082     https://:8083
-              │               │               │
-              ▼               ▼               ▼
-             Web             Móvil           Cajero
+                       +----------------------+
+                       | Authorization Server |
+                       |   OAuth 2.0 / JWT    |
+                       +----------+-----------+
+                                  |
+                                  |
+               +------------------+------------------+
+               |                  |                  |
+               v                  v                  v
+        +-------------+    +-------------+    +-------------+
+        |   BFF Web   |    | BFF Mobile  |    |   BFF ATM   |
+        +------+------+    +------+------+    +------+------+
+               |                  |                  |
+               +------------------+------------------+
+                                  |
+                                  v
+                        +-------------------+
+                        | Backend Principal |
+                        +---------+---------+
+                                 |
+                    +------------+-------------+
+                    |                          |
+                    v                          v
+        +----------------------+      +------------------+
+        | Oracle Autonomous DB |      |   Apache Kafka   |
+        |                      |      |     Eventos      |
+        +----------------------+      +---------+--------+
 ```
 
-Cada BFF es una aplicación Spring Boot independiente, con su propia configuración, endpoints, DTO, lógica de transformación y configuración de seguridad.
+Los BFF actuaran como intermediarios entre los clientes y el Backend Principal, permitiendo entregar informacion especifica dependiendo del canal utilizado.
 
-El acceso a Oracle permanece centralizado en el backend principal.
+## 6. Seguridad
 
----
+La solucion utilizara Spring Authorization Server para implementar OAuth 2.0.
 
-## 3. Justificación
+utilizando el flujo `client_credentials`, donde cada BFF dispondra de sus propias credenciales y scope:
 
-Se seleccionó esta estrategia porque cada canal posee requerimientos diferentes.
-
-### Web
-
-El cliente Web dispone de una interfaz con mayor capacidad para mostrar información detallada.
-
-Su BFF entrega:
-
-- Identificación de la cuenta.
-- Datos del cliente.
-- Tipo de cuenta.
-- Saldo inicial.
-- Tasa de interés.
-- Interés calculado.
-- Saldo actual.
-- Estado.
-
-### Mobile
-
-El cliente Mobile busca reducir el volumen de información transferida.
-
-Su respuesta contiene solamente:
-
-- ID de cuenta.
-- Nombre.
-- Tipo de cuenta.
-- Saldo actual.
-- Estado.
-
-Esto permite disminuir el tamaño de la respuesta y evitar enviar información que la interfaz móvil no necesita.
-
-### ATM
-
-El cajero automático requiere una interfaz reducida y orientada a operaciones concretas.
-
-El BFF ATM expone principalmente:
-
-- Consulta de saldo.
-- Retiro de dinero.
-
-De esta manera no se entrega información adicional innecesaria para la operación de un cajero.
-
----
-
-## 4. Optimización por canal
-
-Las respuestas fueron diseñadas específicamente para las necesidades de cada cliente.
-
-Durante una prueba utilizando la cuenta `101` se obtuvieron los siguientes tamaños:
-
-| Canal | Tamaño |
-|---|---:|
-| Web | 183 bytes |
-| Mobile | 99 bytes |
-| ATM | 57 bytes |
-
-Respecto de Web:
-
-- Mobile transfirió aproximadamente un **45,9 % menos información**.
-- ATM transfirió aproximadamente un **68,9 % menos información**.
-
-También se obtuvieron los siguientes tiempos durante una ejecución de prueba:
-
-| Canal | Tiempo |
-|---|---:|
-| Web | 0.381755 s |
-| Mobile | 0.111764 s |
-| ATM | 0.093577 s |
-
-Los tiempos pueden variar según cada ejecución, por lo que se consideran solamente como referencia.
-
-La principal evidencia de optimización corresponde a la reducción del tamaño de las respuestas mediante DTO específicos por canal.
-
----
-
-## 5. Seguridad
-
-Cada BFF posee una configuración de seguridad independiente.
-
-La solución implementa:
-
-- HTTPS.
-- Certificados SSL/TLS.
-- Keystores PKCS12 independientes.
-- Autenticación mediante credenciales.
-- Tokens JWT.
-- Firma HMAC SHA-256.
-- Autorización específica por canal.
-- APIs sin estado mediante `STATELESS`.
-- Variables de entorno para contraseñas y secretos.
-
-Los permisos se diferencian mediante scopes:
-
-| Canal | Scope |
+| Cliente | Scope |
 |---|---|
-| Web | `WEB` |
-| Mobile | `MOBILE` |
-| ATM | `ATM` |
+| bff-web | WEB |
+| bff-mobile | MOBILE |
+| bff-atm | ATM |
 
-Estos scopes se validan como:
+El Authorization Server generara tokens JWT y cada BFF funcionara como OAuth 2.0 Resource Server validando el token y los permisos antes de permitir el acceso a sus endpoints.
+
+Adicionalmente, los BFF utilizaran HTTPS mediante certificados almacenados en Keystores.
+
+## 7. Resiliencia
+
+Para evitar problemas del Backend Principal afecten a los clientes, los BFF implementaran mecanismos de tolerancia a fallos mediante Resilience4j.
+
+Se utilizaran:
+
+- **Circuit Breaker**: interrupe temporalmente las llamadas cuando se detecta una cantidad determinada de errores.
+- **Retry**: permite reintentar operaciones ante fallos temporales.
+- **Bulkhead**: limita las llamadas concurrentes para evitar la saturacion de los servicios.
+- **Fallback**: Proporciona respuestas controladas cuando una operacion no se completa correctamente.
+
+Esto reducira la propagacion de errores.
+
+## 8. Mensajeria asincrona
+
+Se utilizara Apache Kafka para el procesamiento asincrono de eventos.
+
+Cuando el Backend Principal complete una operacion de retiro, publicara un evento en el topico: `retiro_realizado`
+
+El evento sera procesado posteriormente por consumidores pertenecientes al Consumer Group: `auditoria-bankxyz`
+
+El topico contara con tres particiones para permitir distribuir y paralelizar el procesamiento de los eventos.
+
+Esta estrategia permite desacoplar la operacion bancaria principal de procesos secundarios que no necesitan completarse.
+
+## 9. Persistencia
+
+El Backend Principal utilizara Oracle Autonomous Database para almacenar los datos bancarios.
+
+La conexion se realizara mediante Oracle Wallet, cuya ubicacion y credenciales seran proporcionadas mediante variables de entorno.
+
+Esto permite mantener las credenciales sensibles separadas del codigo y facilita la configuracion del sistema en diferentes entornos.
+
+## 10. Contenerizacion y despliegue
+
+Los diferentes componentes seran contenerizados utilizando Docker.
+
+Cada servicio contara con su propio `Dockerfile`, mientras que Docker Compose sera utilizado para coordinar la ejecucion de la arquitectura.
+
+entre los servicios se encuentran:
 
 ```text
-SCOPE_WEB
-SCOPE_MOBILE
-SCOPE_ATM
+kafka
+backend
+config-server
+discovery-server
+auth-server
+bff-web
+bff-mobile
+bff-atm
 ```
 
-Cada BFF expone:
+Las credenciales y parametros sensibles seran proporcionados mediante variables de entorno y un archivo `.env`, el cual no sera almacenado en el repositorio.
 
-```text
-POST /auth/token
-```
+## 11. Beneficios esperados
 
-para generar un JWT después de validar las credenciales.
+La arquitectura propuesta proporciona los siguientes beneficios:
 
-Posteriormente las solicitudes protegidas deben incluir:
+- Separacion de responsabilidades entre los componentes.
+- Adaptacion de las respuestas segun el canal utilizado
+- Proteccion de endpoints mediante OAuth 2.0 y JWT
+- Comunicacion cifrada mediante HTTPS.
+- Mayor tolerancia ante fallos temporales.
+- Procesamiento asincrono y desacoplado mediante Kafka.
+- Persistencia externa mediante Oracle Autonomous Database.
+- Configuracion centralizada de los microservicios.
+- Descubrimiento dinamico de servicios.
+- Ejecucion reproducible mediante Docker Compose.
 
-```text
-Authorization: Bearer TOKEN_JWT
-```
+## 12. Conclusion
 
-Una solicitud sin token o con un token inválido es rechazada con:
+La propuesta tecnica busca modernizar el backend de Bank XYZ mediante una arquitectura distribuida que combine seguridad, resiliencia, mensajeria asincrona y contenerizacion.
 
-```text
-HTTP 401 Unauthorized
-```
+La separacion mediante BFF permite atender las necesidades especificas de los canales Web, Mobile y ATM, mientras que OAuth 2.0, JWT y HTTPS proporcionan mecanismos de proteccion para el acceso a los servicios.
 
-Los certificados utilizados durante el desarrollo son autofirmados y destinados exclusivamente al entorno local.
-
----
-
-## 6. Modularidad y escalabilidad
-
-La separación de los tres BFF permite modificar un canal sin alterar directamente los otros.
-
-Cada aplicación mantiene una estructura organizada mediante:
-
-```text
-config/
-controller/
-dto/
-service/
-```
-
-Esto permite:
-
-- incorporar nuevos endpoints;
-- modificar respuestas de un canal;
-- agregar nuevas reglas de autorización;
-- evolucionar cada BFF independientemente;
-- incorporar nuevos clientes en el futuro.
-
-Por ejemplo, un nuevo canal podría agregarse mediante un nuevo BFF sin modificar las respuestas existentes de Web, Mobile o ATM.
-
----
-
-## 7. Ventajas de la propuesta
-
-La estrategia seleccionada entrega las siguientes ventajas:
-
-- Respuestas específicas para cada frontend.
-- Reducción de información innecesaria.
-- Separación de responsabilidades.
-- Seguridad diferenciada por canal.
-- Mejor mantenibilidad.
-- Escalabilidad independiente.
-- Menor acoplamiento entre los clientes y el backend principal.
-
-Como desventaja, mantener tres aplicaciones independientes aumenta la cantidad de configuraciones y componentes que deben administrarse.
-
-Sin embargo, para este proyecto la separación resulta adecuada debido a las diferencias existentes entre Web, Mobile y ATM.
-
----
-
-## 8. Conclusión
-
-La propuesta implementa el patrón Backend for Frontend mediante tres backends independientes orientados a Web, Mobile y ATM.
-
-Cada BFF entrega información optimizada para su cliente y protege sus endpoints mediante HTTPS, certificados SSL/TLS, autenticación, autorización y tokens JWT.
-
-La solución conserva el acceso a datos en el backend principal y separa la lógica específica de cada frontend, obteniendo una arquitectura modular, segura y preparada para futuras extensiones.
+Finalmente, la utilizacion de Resilience4j, Apache Kafka, Oracle Autonomous Database y Docker permite construir una solucion modular que demuestra la aplicacion practica de diferentes concesptos asociados al desarrollo de sistemas backend modernos.
