@@ -1,0 +1,27 @@
+name: Deploy Bank XYZ to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar clave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
+          chmod 600 ~/.ssh/ec2.pem
+
+      - name: Probar conexion con EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            -i ~/.ssh/ec2.pem \
+            ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }} \
+            "echo 'Conexion con EC2 exitosa' && docker --version"
