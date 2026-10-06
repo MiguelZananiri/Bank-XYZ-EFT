@@ -23,7 +23,7 @@ jobs:
             "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'EOF'
 
             if [ ! -d "$HOME/bankxyz" ]; then
-              git clone TU_URL_DEL_REPOSITORIO "$HOME/bankxyz"
+              git clone https://github.com/MiguelZananiri/Bank-XYZ-EFT.git "$HOME/bankxyz"
             else
               cd "$HOME/bankxyz"
               git pull
