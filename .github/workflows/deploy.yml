@@ -23,5 +23,5 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/ec2.pem \
-            ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }} \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
             "echo 'Conexion con EC2 exitosa' && docker --version"
