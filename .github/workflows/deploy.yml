@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Configurar clave SSH
         run: |
           mkdir -p ~/.ssh
@@ -20,17 +21,43 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/ec2.pem \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'EOF'
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << EOF
 
-            if [ ! -d "$HOME/bankxyz" ]; then
-              git clone https://github.com/MiguelZananiri/Bank-XYZ-EFT.git "$HOME/bankxyz"
+            # Descargar o actualizar proyecto
+            if [ ! -d "\$HOME/bankxyz" ]; then
+              git clone https://github.com/MiguelZananiri/Bank-XYZ-EFT.git "\$HOME/bankxyz"
             else
-              cd "$HOME/bankxyz"
+              cd "\$HOME/bankxyz"
               git pull
             fi
 
-            cd "$HOME/bankxyz"
+            cd "\$HOME/bankxyz"
 
+            # Ruta temporal para satisfacer Docker Compose
+            mkdir -p /tmp/wallet
+
+            # Crear variables de entorno desde GitHub Secrets
+            cat > .env << 'ENVEOF'
+            BANKXYZ_DB_PASSWORD=${{ secrets.BANKXYZ_DB_PASSWORD }}
+
+            AUTH_WEB_CLIENT_SECRET=${{ secrets.AUTH_WEB_CLIENT_SECRET }}
+            AUTH_MOBILE_CLIENT_SECRET=${{ secrets.AUTH_MOBILE_CLIENT_SECRET }}
+            AUTH_ATM_CLIENT_SECRET=${{ secrets.AUTH_ATM_CLIENT_SECRET }}
+
+            BFF_WEB_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_WEB_SSL_KEYSTORE_PASSWORD }}
+            BFF_MOBILE_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_MOBILE_SSL_KEYSTORE_PASSWORD }}
+            BFF_ATM_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_ATM_SSL_KEYSTORE_PASSWORD }}
+
+            ORACLE_WALLET_HOST_PATH=/tmp/wallet
+            ENVEOF
+
+            # Proteger el archivo
+            chmod 600 .env
+
+            # Comprobar configuración
+            docker compose config > /dev/null
+
+            # Construir imágenes
             docker compose build
 
           EOF
