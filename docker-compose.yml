@@ -26,7 +26,6 @@ services:
       - "8080:8080"
     environment:
       BANKXYZ_DB_PASSWORD: ${BANKXYZ_DB_PASSWORD}
-      ORACLE_WALLET_DIR: /app/wallet
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     
     healthcheck:
@@ -35,9 +34,6 @@ services:
       timeout: 3s
       retries: 15
       start_period: 20s
-
-    volumes:
-      - "${ORACLE_WALLET_HOST_PATH}:/app/wallet:ro"
 
     depends_on:
       - kafka
