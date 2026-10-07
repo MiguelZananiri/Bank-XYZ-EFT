@@ -34,8 +34,6 @@ jobs:
 
             cd "\$HOME/bankxyz"
 
-            mkdir -p /tmp/wallet
-
             printf '%s\n' \
               'BANKXYZ_DB_PASSWORD=${{ secrets.BANKXYZ_DB_PASSWORD }}' \
               'AUTH_WEB_CLIENT_SECRET=${{ secrets.AUTH_WEB_CLIENT_SECRET }}' \
@@ -44,7 +42,6 @@ jobs:
               'BFF_WEB_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_WEB_SSL_KEYSTORE_PASSWORD }}' \
               'BFF_MOBILE_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_MOBILE_SSL_KEYSTORE_PASSWORD }}' \
               'BFF_ATM_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_ATM_SSL_KEYSTORE_PASSWORD }}' \
-              'ORACLE_WALLET_HOST_PATH=/tmp/wallet' \
               > .env
 
             chmod 600 .env
