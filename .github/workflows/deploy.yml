@@ -26,7 +26,7 @@ jobs:
             set -e
 
             if [ ! -d "\$HOME/bankxyz" ]; then
-              git clone TU_URL_REPOSITORIO "\$HOME/bankxyz"
+              git clone https://github.com/MiguelZananiri/Bank-XYZ-EFT.git "\$HOME/bankxyz"
             else
               cd "\$HOME/bankxyz"
               git pull
