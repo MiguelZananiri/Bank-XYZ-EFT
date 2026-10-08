@@ -42,6 +42,7 @@ jobs:
               'BFF_WEB_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_WEB_SSL_KEYSTORE_PASSWORD }}' \
               'BFF_MOBILE_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_MOBILE_SSL_KEYSTORE_PASSWORD }}' \
               'BFF_ATM_SSL_KEYSTORE_PASSWORD=${{ secrets.BFF_ATM_SSL_KEYSTORE_PASSWORD }}' \
+              'EC2_HOST=${{ secrets.EC2_HOST }}' \
               > .env
 
             chmod 600 .env
