@@ -97,7 +97,7 @@ services:
       - "8081:8081"
     environment:
       BFF_WEB_SSL_KEYSTORE_PASSWORD: ${BFF_WEB_SSL_KEYSTORE_PASSWORD}
-      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_ISSUER: http://${EC2_HOST}:9000
       AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
@@ -127,7 +127,7 @@ services:
     environment:
       BFF_MOBILE_SSL_KEYSTORE_PASSWORD: ${BFF_MOBILE_SSL_KEYSTORE_PASSWORD}
       CONFIG_SERVER_URL: http://config-server:8888
-      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_ISSUER: http://${EC2_HOST}:9000
       AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       BANKXYZ_BACKEND_URL: http://backend:8080
@@ -156,7 +156,7 @@ services:
     environment:
       BFF_ATM_SSL_KEYSTORE_PASSWORD: ${BFF_ATM_SSL_KEYSTORE_PASSWORD}
       CONFIG_SERVER_URL: http://config-server:8888
-      AUTH_SERVER_ISSUER: http://localhost:9000
+      AUTH_SERVER_ISSUER: http://${EC2_HOST}:9000
       AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       BANKXYZ_BACKEND_URL: http://backend:8080
