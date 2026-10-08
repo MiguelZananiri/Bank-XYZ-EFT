@@ -35,6 +35,8 @@ jobs:
             cd "\$HOME/bankxyz"
 
             printf '%s\n' \
+              'BANKXYZ_DB_URL=${{ secrets.BANKXYZ_DB_URL }}' \
+              'BANKXYZ_DB_NAME=${{ secrets.BANKXYZ_DB_NAME }}' \
               'BANKXYZ_DB_PASSWORD=${{ secrets.BANKXYZ_DB_PASSWORD }}' \
               'AUTH_WEB_CLIENT_SECRET=${{ secrets.AUTH_WEB_CLIENT_SECRET }}' \
               'AUTH_MOBILE_CLIENT_SECRET=${{ secrets.AUTH_MOBILE_CLIENT_SECRET }}' \
