@@ -102,6 +102,8 @@ services:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       BANKXYZ_BACKEND_URL: http://backend:8080
+    volumes:
+      - /opt/bankxyz/keystores/bff-web.p12:/app/keystore.p12:ro
     depends_on:
       auth-server:
         condition: service_healthy
@@ -129,6 +131,8 @@ services:
       AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       BANKXYZ_BACKEND_URL: http://backend:8080
+    volumes:
+      - /opt/bankxyz/keystores/bff-mobile.p12:/app/keystore.p12:ro
     depends_on:
       auth-server:
         condition: service_healthy
@@ -156,6 +160,8 @@ services:
       AUTH_SERVER_JWK_URI: http://auth-server:9000/oauth2/jwks
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       BANKXYZ_BACKEND_URL: http://backend:8080
+    volumes:
+      - /opt/bankxyz/keystores/bff-atm.p12:/app/keystore.p12:ro
     depends_on:
       auth-server:
         condition: service_healthy
